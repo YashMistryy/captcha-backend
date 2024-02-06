@@ -30,6 +30,7 @@ class User(AbstractUser):
     # New fields
     member_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     current_balance = models.PositiveIntegerField(default=0, blank=True)
+    times_reffered = models.PositiveIntegerField(default=0)
     current_plan = models.ForeignKey("game.Plan", verbose_name=(""), on_delete=models.CASCADE,null=True)
     referral_id = models.CharField(max_length=7, default=generate_unique_id, editable=False)
     mobile_number = models.CharField(null=False,unique=True,max_length=10,validators=[

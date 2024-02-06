@@ -9,13 +9,17 @@ class Plan(models.Model):
     name = models.CharField(max_length=255)
     amount = models.PositiveIntegerField(null=False)
     captcha_limit = models.PositiveIntegerField(null=False)
+    referral_amount = models.PositiveIntegerField(default=0)
     def __str__(self):
-        return self.name
+        return str(self.name) + str(self.amount)
     
 class PaymentTransaction(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    transactionId = models.CharField(max_length=50,default='transctn_id')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    upi_id = models.CharField(max_length=50,default='upi_id',unique=False,null=True)
     date = models.DateTimeField(auto_now_add=True)
+    refferal_id = models.CharField(max_length=50,default='reff_id')
     SUCCESS = 'Success'
     FAILURE = 'Failure'
     PENDING = 'Pending'
@@ -25,6 +29,27 @@ class PaymentTransaction(models.Model):
         (PENDING, 'Pending'),
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+
+class WithdrawTransaction(models.Model):
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    upi_id = models.CharField(max_length=50)
+    bank_id = models.CharField(max_length=50)
+    date = models.DateField(auto_now_add=True)
+    SUCCESS = 'Success'
+    FAILURE = 'Failure'
+    PENDING = 'Pending'
+    STATUS_CHOICES = [
+        (SUCCESS, 'Success'),
+        (FAILURE, 'Failure'),
+        (PENDING, 'Pending'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+
+    def __str__(self):
+        return f"WithdrawTransaction - Amount: {self.amount}, UPI ID: {self.upi_id}, Bank ID: {self.bank_id}, Date: {self.date}"
+
 
 class CaptchaPlanRecord(models.Model): # store info of user and plan -- like courseenrollment ?
     user = models.ForeignKey(User, on_delete=models.CASCADE,unique=True)

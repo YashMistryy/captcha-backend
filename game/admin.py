@@ -1,5 +1,5 @@
 from django.contrib import admin
-from game.models import Plan,CaptchaPlanRecord,PaymentTransaction
+from game.models import Plan,CaptchaPlanRecord,PaymentTransaction , WithdrawTransaction
 
 
 
@@ -7,3 +7,4 @@ from game.models import Plan,CaptchaPlanRecord,PaymentTransaction
 admin.site.register(Plan)
 admin.site.register(CaptchaPlanRecord)
 admin.site.register(PaymentTransaction)
+admin.site.register(WithdrawTransaction)
