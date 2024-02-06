@@ -2,7 +2,10 @@
 from django.contrib.auth.models import AbstractUser,BaseUserManager
 from django.db import models
 from django.core.validators import RegexValidator
+import uuid
 
+def generate_unique_id():
+    return str(uuid.uuid4())[:7]
 class UserManager(BaseUserManager):
     def create_user(self, mobile_number, password=None, **extra_fields):
         if not mobile_number:
@@ -24,10 +27,11 @@ class User(AbstractUser):
     age = models.PositiveIntegerField(null=True, blank=True)
     location = models.CharField(max_length=255, blank=True)
     bio = models.TextField(blank=True)
-    # New field
+    # New fields
     member_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     current_balance = models.PositiveIntegerField(default=0, blank=True)
     current_plan = models.ForeignKey("game.Plan", verbose_name=(""), on_delete=models.CASCADE,null=True)
+    referral_id = models.CharField(max_length=7, default=generate_unique_id, editable=False)
     mobile_number = models.CharField(null=False,unique=True,max_length=10,validators=[
             RegexValidator(
                 regex=r'^\d{10}$',
@@ -53,3 +57,4 @@ class User(AbstractUser):
             super().save(*args, **kwargs)
 
 
+  # Take the first 7 characters of the UUID

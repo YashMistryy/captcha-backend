@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework import status
-from game.models import Plan
+from game.models import Plan,PaymentTransaction
 from game.serializers import PlanSerializer
 import logging
 from django.utils import timezone
@@ -104,7 +104,7 @@ def submit_captcha(request):
             cr = pe[0]
             cr.fill_captcha()
             # also user should get his points or money increased!
-            user.current_balance += 2
+            user.current_balance += 1
             user.save()
             return Response(status=status.HTTP_201_CREATED,data={"msg":"Captcha record filled!"})
         else:
@@ -128,13 +128,29 @@ def get_user_details(request):
             ce.save()
         data = {
             'first_name':user.first_name,
-            'last_name':user.first_name,
+            'last_name':user.last_name,
             'email':user.email,
+            'current_balance':user.current_balance,
             "mobile_number":user.mobile_number,
             'plan_name':ce.plan.name,
             'total_captcha_filled':ce.total_captchas_filled,
             'captcha_limit':ce.plan.captcha_limit,
+            'payment_history':PaymentTransaction.objects.filter(user=user).values(),
+            'withdraw_history':[],
+        }
+        return Response(status=status.HTTP_200_OK,data=data)
+    except CaptchaPlanRecord.DoesNotExist:
+        data = {
+            'first_name':user.first_name,
+            'last_name':user.last_name,
+            'email':user.email,
             'current_balance':user.current_balance,
+            "mobile_number":user.mobile_number,
+            'plan_name':"",
+            'total_captcha_filled':0,
+            'captcha_limit':0,
+            'payment_history':[],
+            'withdraw_history':[],
         }
         return Response(status=status.HTTP_200_OK,data=data)
     except Exception as e:
