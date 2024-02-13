@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes , parser_classes
 from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework import status
 from game.models import Plan,PaymentTransaction,WithdrawTransaction
@@ -10,7 +10,29 @@ from game.serializers import PlanSerializer
 import logging
 from django.utils import timezone
 from users.models import User
+from rest_framework.parsers import MultiPartParser, FormParser
+
 import traceback
+from rest_framework import serializers
+
+# class FileUploadSerializer(serializers.Serializer):
+#     transactionId = serializers.CharField()
+#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+#     mobileNumber = serializers.CharField()
+#     selectedImage = serializers.ImageField()
+#     from rest_framework import serializers
+
+class FileUploadSerializer(serializers.Serializer):
+    selectedImage = serializers.ImageField()
+
+    def validate_image(self, value):
+        """
+        Check if the uploaded file is an image.
+        """
+        if value.content_type.startswith('image'):
+            return value
+        else:
+            raise serializers.ValidationError("Uploaded file is not an image.")
 
 # logging.basicConfig(filename='error.log', level=logging.ERROR, format='%(asctime)s [%(levelname)s] - %(message)s')
 
@@ -51,10 +73,17 @@ def select_plan(request):
         print(selected_plan)
         # now enroll user
         if (user.current_balance < selected_plan.amount):
-            return Response(status=status.HTTP_204_NO_CONTENT,data={"msg":"low_balance"})
+            return Response(status=status.HTTP_205_RESET_CONTENT,data={"msg":"low_balance"})
+        if(CaptchaPlanRecord.objects.filter(user=user)):
+            return Response(status=status.HTTP_204_NO_CONTENT,data={"msg":"User already enrolled in a plan"})
+            
         CaptchaPlanRecord.objects.create(user=user,plan=selected_plan,is_plan_active=True)
+        print("user balance before ",user.current_balance)
+        print("selected-plan-amount",selected_plan.amount)
         user.current_balance -= selected_plan.amount
         user.save()
+        print("user balance after ",user.current_balance)
+        
         try:
             user_objs = User.objects.filter(referral_id=refferal_id)
             if user_objs: # only if referal id is correct we are going to increase both user's balance
@@ -86,19 +115,35 @@ def check_if_enrolled(request):
             # If the last captcha fill date is not today, reset the count
             ce.captchas_filled_today = 0
             ce.save()
-        return Response(
-            {"is_having_plan":True,
-             "is_plan_activated":ce.is_plan_active,
-             "userData":{
+        if (ce.remaining_days() == 0):
+            ce.delete()
+        try:    
+            return Response(
+                {"is_having_plan":True,
+                 "is_plan_activated":ce.is_plan_active,
+                 "plan_remaining_days":ce.remaining_days(),
+                 "userData":{   
+                     "name":user.first_name+" "+user.last_name,
+                     "member_id":user.member_id,
+                     "phone_number":user.mobile_number,
+                     "current_balance":user.current_balance},
+                 "planData":{
+                     "captchas_filled":ce.captchas_filled_today,
+                     "name":ce.plan.name,
+
+                     "captcha_limit":ce.plan.captcha_limit}})
+        except:
+            return Response({"is_having_plan":False,"is_plan_activated":False,"plan_remaining_days":1,
+                      "userData":{
                  "name":user.first_name+" "+user.last_name,
                  "member_id":user.member_id,
                  "phone_number":user.mobile_number,
                  "current_balance":user.current_balance},
              "planData":{
-                 "captchas_filled":ce.captchas_filled_today,
-                 "name":ce.plan.name,
-                 "captcha_limit":ce.plan.captcha_limit}})
-    return Response({"is_having_plan":False,"is_plan_activated":False,
+                 "captchas_filled":0,
+                 "name":"",
+                 "captcha_limit":0}})
+    return Response({"is_having_plan":False,"is_plan_activated":False,"plan_remaining_days":0,
                       "userData":{
                  "name":user.first_name+" "+user.last_name,
                  "member_id":user.member_id,
@@ -150,6 +195,9 @@ def get_user_details(request):
             # If the last captcha fill date is not today, reset the count
             ce.captchas_filled_today = 0
             ce.save()
+        if (ce.remaining_days() == 0):
+            ce.delete()
+            
         data = {
             'first_name':user.first_name,
             'last_name':user.last_name,
@@ -160,7 +208,7 @@ def get_user_details(request):
             'total_captcha_filled':ce.total_captchas_filled,
             'refferal_code':user.referral_id,
             'times_reffered':user.times_reffered,
-            
+            'plan_withdraw_limit':ce.plan.withdraw_limit,
             'captcha_limit':ce.plan.captcha_limit,
             'payment_history':PaymentTransaction.objects.filter(user=user).values(),
             'withdraw_history':WithdrawTransaction.objects.filter(user=user).values(),
@@ -177,6 +225,8 @@ def get_user_details(request):
             'total_captcha_filled':0,
             'captcha_limit':0,
             'refferal_code':user.referral_id,
+            'plan_withdraw_limit':None,
+            
             'times_reffered':user.times_reffered,
             'payment_history':PaymentTransaction.objects.filter(user=user).values(),
             'withdraw_history':WithdrawTransaction.objects.filter(user=user).values(),
@@ -207,30 +257,59 @@ def withdraw_amount(request):
         return Response(status=status.HTTP_206_PARTIAL_CONTENT)
     
     
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def add_amount(request):
+#     print("--------------addd funds callled---------------")
+#     # just add an object to model here with status pending so that user can see it in Wallet section
+#     user = request.user
+#     try:
+#         serializer = FileUploadSerializer(data=request.data)
+#         if serializer.is_valid():
+#             print("---------------------serializer is valid--------------")
+#             return Response(status=status.HTTP_200_OK,data={"msg":"image stored successfully!"})
+#         amount = request.data.get("amount",None)
+#         transactionId = request.data.get("transactionId",None)
+#         if(amount and transactionId):
+#             PaymentTransaction.objects.create(user=user,status="Pending",amount=amount,transactionId=transactionId)
+#             return Response(status=status.HTTP_201_CREATED)
+#         else:
+#             return Response(status=status.HTTP_400_BAD_REQUEST,data={"msg":"wrong data were present in request"})
+#     except Exception as e:
+#         print(e)
+#         return Response(status=status.HTTP_403_FORBIDDEN)
 @api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
 @permission_classes([IsAuthenticated])
 def add_amount(request):
-    # just add an object to model here with status pending so that user can see it in Wallet section
+    print("--------------add funds called---------------")
     user = request.user
     try:
-        amount = request.data.get("amount",None)
-        # upi_id = request.data.get("upi_id",None)
-        # refferal_id = request.data.get("refferal_id",None) # wiht this increase the referal amount by 500 for e botht the users
-        # user_objs = User.objects.filter(referral_id=refferal_id)
-        # if user_objs: # only if referal id is correct we are going to increase both user's balance
-        #     user1 = user_objs[0]
-        #     user1.current_balance += 500
-        #     user1.save()
-        #     amount = int(amount)+500  
-        transactionId = request.data.get("transactionId",None)
-        if(amount and transactionId):
-            PaymentTransaction.objects.create(user=user,status="Pending",amount=amount,transactionId=transactionId)
-            return Response(status=status.HTTP_201_CREATED)
+        # Handle file upload with serializer
+        serializer = FileUploadSerializer(data=request.data)
+        if serializer.is_valid():
+            # Save the uploaded file and get the file path
+            image_path = serializer.validated_data['selectedImage']
+            print("image path",image_path)
+            # Extract other fields from request data
+            amount = request.data.get("amount")
+            transaction_id = request.data.get("transactionId")
+            # Create PaymentTransaction object with image path and other fields
+            PaymentTransaction.objects.create(
+                user=user,
+                status="Pending",
+                amount=amount,
+                transactionId=transaction_id,
+                payment_screenshot=image_path  # Store image path in the model field
+            )
+            return Response({"msg": "Payment transaction created successfully!"}, status=status.HTTP_201_CREATED)
         else:
-            return Response(status=status.HTTP_400_BAD_REQUEST,data={"msg":"wrong data were present in request"})
+            # If serializer validation fails, return error response
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         print(e)
-        return Response(status=status.HTTP_412_PRECONDITION_FAILED)
+        return Response({"error": "An error occurred while processing the request"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     
 def reset_daily_captcha_record():
     # make it 0 if last_filled_captcha was before today

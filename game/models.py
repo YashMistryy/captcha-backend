@@ -10,6 +10,8 @@ class Plan(models.Model):
     amount = models.PositiveIntegerField(null=False)
     captcha_limit = models.PositiveIntegerField(null=False)
     referral_amount = models.PositiveIntegerField(default=0)
+    duration = models.PositiveIntegerField(default=60)
+    withdraw_limit = models.PositiveIntegerField(default=200)   
     def __str__(self):
         return str(self.name) + str(self.amount)
     
@@ -20,6 +22,7 @@ class PaymentTransaction(models.Model):
     upi_id = models.CharField(max_length=50,default='upi_id',unique=False,null=True)
     date = models.DateTimeField(auto_now_add=True)
     refferal_id = models.CharField(max_length=50,default='reff_id')
+    payment_screenshot = models.ImageField(upload_to='screenshots/images/',null=True,blank=True,default='default_payment_screenshot.jpg')
     SUCCESS = 'Success'
     FAILURE = 'Failure'
     PENDING = 'Pending'
@@ -59,10 +62,23 @@ class CaptchaPlanRecord(models.Model): # store info of user and plan -- like cou
     is_plan_over = models.BooleanField(default=False)
     is_plan_active = models.BooleanField(default=False)
     last_captcha_fill_date = models.DateField(default=timezone.now)
+    start_date = models.DateTimeField(default=timezone.now)
     
     def __str__(self):
         return f"{self.user.username} - {self.plan.name}"
     
+    # @property
+    def remaining_days(self):
+        """
+        Calculate the number of remaining days for the plan.
+        """
+        if self.start_date:
+            end_date = self.start_date + timezone.timedelta(days=self.plan.duration)
+            remaining_days = (end_date - timezone.now()).days
+            return max(0, remaining_days)  # Ensure non-negative value
+        else:
+            return 0  # If start_date is not set, return 0 remaining days
+        
     def fill_captcha(self):
         today = timezone.now().date()
         if self.last_captcha_fill_date != today:
