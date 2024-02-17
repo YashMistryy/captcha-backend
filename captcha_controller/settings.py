@@ -24,9 +24,10 @@ MEDIA_URL = '/media/'
 SECRET_KEY = 'django-insecure-q)3qqnop$b(k^qb6#ft5xyxf+fue1$s7+n2-a%tfval5gs4e6m'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+#DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [""]
 
 
 # Application definition
@@ -39,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-
+   'django_extensions',
     'game',
     'users',
      'rest_framework',
@@ -124,6 +125,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
@@ -153,12 +157,18 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     'http://192.168.1.14:8000',
     'http://192.168.1.14',
-    
+    'http://3.87.209.198:3000',
+    'http://3.87.209.198',
+    'http://3.212.137.207:3000',    
+    'http://3.212.137.207',    
+    'https://filcaptcha.com:3000',
+    'https://filcaptcha.com',
     # Add other allowed domains as needed
 ]
 # settings.py
 
-ALLOWED_HOSTS = ['192.168.1.14', 'localhost', '127.0.0.1']
+#ALLOWED_HOSTS = ['192.168.1.14', 'localhost', '127.0.0.1','54.165.238.40']
+ALLOWED_HOSTS = ['*']
 
 CORS_ALLOW_CREDENTIALS = True
 SIMPLE_JWT = {
