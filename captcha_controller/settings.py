@@ -39,10 +39,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-
     'game',
     'users',
      'rest_framework',
+    "django_extensions",
+
 ]
 
 MIDDLEWARE = [
@@ -153,12 +154,15 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     'http://192.168.1.14:8000',
     'http://192.168.1.14',
-    
+    'https://filcaptcha.com'    
     # Add other allowed domains as needed
 ]
 # settings.py
 
-ALLOWED_HOSTS = ['192.168.1.14', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['192.168.1.14', 'localhost', '127.0.0.1','3.212.137.207' , 'filcaptcha.com']
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 CORS_ALLOW_CREDENTIALS = True
 SIMPLE_JWT = {

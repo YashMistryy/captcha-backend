@@ -67,7 +67,7 @@ def select_plan(request):
     # now with the available details like user ,plan_id and transaction details we can enroll user into a plan , but not activate it just yet
     try:
         plan_id = int(data.get('plan_id'))
-        refferal_id = (data.get('refferal_id'))
+        refferal_id = (data.get('referral_id'))
         
         selected_plan = Plan.objects.get(id=plan_id)
         print(selected_plan)
@@ -89,6 +89,7 @@ def select_plan(request):
             if user_objs: # only if referal id is correct we are going to increase both user's balance
                 user1 = user_objs[0]
                 user1.current_balance += selected_plan.referral_amount
+                user1.times_reffered += 1
                 user1.save()
                 user.current_balance += 500 #selected_plan.referral_amount
                 user.save()
