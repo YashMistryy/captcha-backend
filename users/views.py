@@ -1,12 +1,14 @@
 from django.shortcuts import render
 from rest_framework import views ,permissions,response,status
 from .serializers import RegisterUserSerializer
+import logging
 # Create your views here.
 # class RegisterUser()
 
 class RegisterUser(views.APIView):
-    # permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.AllowAny]
     def post(self,request):
+        logging.info("REGISTER VIEW CALLED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ")
         reg_serializer = RegisterUserSerializer(data=request.data)
         if reg_serializer.is_valid():
             # create the user as details are provided correctly

@@ -15,7 +15,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 import os
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-MEDIA_URL = '/media/'
+MEDIA_URL = '/server/media/'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'game',
     'users',
-     'rest_framework',
+    'rest_framework',
     "django_extensions",
 
 ]
@@ -83,8 +83,15 @@ WSGI_APPLICATION = 'captcha_controller.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        #'ENGINE': 'django.db.backends.sqlite3',
+        #'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'captcha',
+        'USER': 'root',
+        'PASSWORD': 'password',
+        'HOST': 'localhost',
+        'PORT': '3306',  
+
     }
 }
 
@@ -123,10 +130,28 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
-
+STATIC_URL = '/server/static/'
+#STATIC_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'staticfiles')
+STATIC_ROOT = '/home/ubuntu/captcha-backend/captcha-backend'+'/staticfiles'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
+
+
+# Truncate SQL queries to this many characters (None means no truncation)
+RUNSERVER_PLUS_PRINT_SQL_TRUNCATE = 1000
+
+# After how many seconds auto-reload should scan for updates in poller-mode
+RUNSERVERPLUS_POLLER_RELOADER_INTERVAL = 1
+
+# Werkzeug reloader type [auto, watchdog, or stat]
+RUNSERVERPLUS_POLLER_RELOADER_TYPE = 'auto'
+
+# Add extra files to watch
+RUNSERVER_PLUS_EXTRA_FILES = []
+
+# Do not watch files matching any of these patterns
+RUNSERVER_PLUS_EXCLUDE_PATTERNS = []
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -146,7 +171,22 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ]
+    ],
+    # Throttling
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '1000/day',
+    },
+
+    # Caching
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_CACHE_RESPONSE_TIMEOUT': 60 * 15,  # 15 minutes
+    
+
 }
 
 
@@ -160,9 +200,9 @@ CORS_ALLOWED_ORIGINS = [
 # settings.py
 
 ALLOWED_HOSTS = ['192.168.1.14', 'localhost', '127.0.0.1','3.212.137.207' , 'filcaptcha.com']
-
+ALLOWED_HOSTS = ['*']
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
+SECURE_SSL_REDIRECT = True
 
 CORS_ALLOW_CREDENTIALS = True
 SIMPLE_JWT = {
@@ -205,3 +245,29 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer",
 }
 APPEND_SLASH = False #if post request dont come with a forward slash /
+
+
+
+
+
+
+# settings.py
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': '/var/log/django-access.log',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}

@@ -15,6 +15,9 @@ from rest_framework.parsers import MultiPartParser, FormParser
 import traceback
 from rest_framework import serializers
 
+logging.basicConfig(level=logging.INFO) 
+log = logging.getLogger(__name__)
+
 # class FileUploadSerializer(serializers.Serializer):
 #     transactionId = serializers.CharField()
 #     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
@@ -97,7 +100,7 @@ def select_plan(request):
             print("************************* ecxeption {e}".format(e))
             pass
     except Exception as e:
-        logging.error(f"An exception occurred: {str(e)}\n{traceback.format_exc()}")       
+        log.error(f"An exception occurred: {str(e)}\n{traceback.format_exc()}")       
         return Response(status=status.HTTP_400_BAD_REQUEST,data={"msg":"Plan was Not Selected  :( Maybe user is already enrolled in a Plan"})
     return Response({"msg":"plan selected"})
 
@@ -180,7 +183,7 @@ def submit_captcha(request):
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST,data={"msg":"something wen wrong , maybe applied value was not correct!"})
     except Exception as e:
-        logging.error(f"An exception occurred: {str(e)}\n{traceback.format_exc()}")   
+        log.error(f"An exception occurred: {str(e)}\n{traceback.format_exc()}")   
         return Response(status=status.HTTP_400_BAD_REQUEST,data={"msg":"something went wrong at server"})
         
         
@@ -189,11 +192,14 @@ def submit_captcha(request):
 def get_user_details(request):
     #get each detail about user and his plan(if any)
     user = request.user
+    log.error("getting user details for :",user)
     try:
         ce = CaptchaPlanRecord.objects.get(user=user)
         today = timezone.now().date()
+        print("plan record ",ce)
         if ce.last_captcha_fill_date != today:
             # If the last captcha fill date is not today, reset the count
+            print("ce.last_captcha_fill_date != today")
             ce.captchas_filled_today = 0
             ce.save()
         if (ce.remaining_days() == 0):
@@ -213,7 +219,9 @@ def get_user_details(request):
             'captcha_limit':ce.plan.captcha_limit,
             'payment_history':PaymentTransaction.objects.filter(user=user).values(),
             'withdraw_history':WithdrawTransaction.objects.filter(user=user).values(),
+            'plan_days_remaining':ce.remaining_days(),
         }
+        print("data -",data)
         return Response(status=status.HTTP_200_OK,data=data)
     except CaptchaPlanRecord.DoesNotExist:
         data = {
@@ -249,7 +257,11 @@ def withdraw_amount(request):
         upi_id = request.data.get("upi_id",None)
         bank_id = request.data.get("bank_id",None)
         if(amount and upi_id and bank_id):
+            if (int(amount) > user.current_balance):
+                return Response(status=status.HTTP_204_NO_CONTENT)
             WithdrawTransaction.objects.create(user=user,status="Pending",amount=amount,upi_id=upi_id,bank_id=bank_id)
+            user.current_balance -= int(amount)
+            user.save()
             return Response(status=status.HTTP_201_CREATED)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST,data={"msg":"wrong data were present in request"})
@@ -300,7 +312,7 @@ def add_amount(request):
                 user=user,
                 status="Pending",
                 amount=amount,
-                transactionId=transaction_id,
+                transactionId=user.mobile_number,
                 payment_screenshot=image_path  # Store image path in the model field
             )
             return Response({"msg": "Payment transaction created successfully!"}, status=status.HTTP_201_CREATED)
@@ -308,8 +320,8 @@ def add_amount(request):
             # If serializer validation fails, return error response
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        print(e)
-        return Response({"error": "An error occurred while processing the request"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        log.error(e)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     
 def reset_daily_captcha_record():
